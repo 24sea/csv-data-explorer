@@ -1,0 +1,40 @@
+# ---------------------------
+# Python cache and build files
+# ---------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ---------------------------
+# Environment / virtual envs
+# ---------------------------
+.env
+.venv
+venv/
+env/
+*.env
+
+# ---------------------------
+# Data and output files
+# ---------------------------
+*.csv
+!datasets/titanic.csv
+!datasets/titanic_clean.csv
+*.xlsx
+*.log
+
+# ---------------------------
+# System / editor files
+# ---------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---------------------------
+# Unwanted old project files
+# ---------------------------
+db.py
+holidays.json
+main.py
