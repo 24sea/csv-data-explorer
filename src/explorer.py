@@ -42,16 +42,70 @@ def parse_args(argv):
     p.add_argument('--impute-fare', choices=['median','mean','none'], default='median', help='how to impute Fare')
     p.add_argument('--drop-cabin', choices=['yes','no'], default='yes', help='drop Cabin column?')
     p.add_argument('--save-clean', default=None, help='optional path to save cleaned csv (e.g., cleaned.csv)')
+    p.add_argument('--columns', help='comma-separated list of columns to keep (optional)')
+    p.add_argument('--query', help='(filters if any condition given by user)')
+    p.add_argument('--impute',action='append',metavar='COL:METHOD',help="Repeatable. Example: --impute Age:median --impute Fare:mean")
     return p.parse_args(argv[1:])
 
-def run_summary(path):
+def run_summary(path, columns, query):
     df = load_csv(path)
+
+    # ✅ Apply column selection (if user gave --columns)
+    if columns:
+        selected_cols = [c.strip() for c in columns.split(",") if c.strip() in df.columns]
+        missing_cols = [c.strip() for c in columns.split(",") if c.strip() not in df.columns]
+
+        if missing_cols:
+            print(f"Ignored missing columns: {', '.join(missing_cols)}")
+
+        df = df[selected_cols]
+
+    if query:
+        df=df.query(query)
+
+    # ✅ Now print summary
     print_summary(df, "Original Summary")
 
-def run_clean(path, impute_age, impute_fare, drop_cabin, save_clean_path):
-    df = load_csv(path)
-    print_summary(df, "Original Summary")
 
+
+def run_clean(path, impute_age, impute_fare, drop_cabin, save_clean_path, columns, query, impute):
+    df = load_csv(path)
+    # ✅ Apply column selection (if user gave --columns)
+    if columns:
+        selected_cols = [c.strip() for c in columns.split(",") if c.strip() in df.columns]
+        missing_cols = [c.strip() for c in columns.split(",") if c.strip() not in df.columns]
+
+        if missing_cols:
+            print(f"Ignored missing columns: {', '.join(missing_cols)}")
+
+        df = df[selected_cols]
+
+    if query:
+        df= df.query(query)
+    print_summary(df, "Original Summary")
+    
+    # ✅ Apply flexible imputation rules
+    if impute:
+        total_coerced = {}
+        for rule in impute:
+            try: 
+                col, method = rule.split(":", 1)
+                col, method = col.strip(), method.strip().lower()
+
+                if col not in df.columns:
+                     print(f"Column '{col}' not found — skipped.") 
+                     continue
+                if method not in ("mean", "median", "none"): 
+                    print(f"Invalid method '{method}' for {col} — skipped.") 
+                    continue
+                if not pd.api.types.is_numeric_dtype(df[col]): 
+                    print(f"Column '{col}' is not numeric — skipped.")
+                    continue
+                df, filled = impute_column(df, col, method)
+                total_coerced[col] = filled
+            except ValueError: 
+                print(f"Invalid format for rule '{rule}'. Use COL:METHOD.") 
+            print("Imputation counts:", total_coerced)
     total_coerced = {}
     # Impute Age
     df, coerced_age = impute_column(df, 'Age', impute_age)
@@ -81,9 +135,17 @@ def main(argv):
         return
 
     if args.command == 'summary':
-        run_summary(path)
+        run_summary(path, args.columns, args.query)
     elif args.command == 'clean':
-        run_clean(path, args.impute_age, args.impute_fare, args.drop_cabin, args.save_clean)
+       run_clean(
+    path,
+    args.impute_age,
+    args.impute_fare,
+    args.drop_cabin,
+    args.save_clean,
+    args.columns,
+    args.query,
+    args.impute)
     else:
         print("Unknown command")
 
